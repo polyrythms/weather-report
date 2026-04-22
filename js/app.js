@@ -9,6 +9,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('startapp');
 
+    // Устанавливаем код в Auth (если он есть)
+    if (code) {
+        Auth.code = code;
+    }
+
     // Пытаемся загрузить токен из localStorage
     let token = Auth.getToken();
 
@@ -16,7 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!token && code) {
         showLoading(true);
         try {
-            token = await Auth.exchangeCode(); // Внутри сохранит токен в localStorage
+            token = await Auth.exchangeCode(); // Внутри использует Auth.code
             showLoading(false);
         } catch (error) {
             showLoading(false);
