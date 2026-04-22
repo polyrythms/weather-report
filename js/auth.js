@@ -7,12 +7,10 @@ const Auth = {
     init() {
         const urlParams = new URLSearchParams(window.location.search);
         this.code = urlParams.get('startapp');
-        if (!this.code) {
-            console.error('No startapp code found in URL');
-            return false;
+        if (this.code) {
+            console.log('Code extracted from URL:', this.code);
         }
-        console.log('Code extracted from URL:', this.code);
-        return true;
+        return !!this.code;
     },
 
     // Обмен кода на токен
@@ -38,9 +36,23 @@ const Auth = {
             })
         });
 
+        // Обработка ошибок с понятными сообщениями
         if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Exchange failed: ${response.status} ${errorText}`);
+            let errorMessage = 'Ошибка авторизации';
+            try {
+                const errorData = await response.json();
+                if (response.status === 500 && errorData.message && errorData.message.includes('Неверный или просроченный код')) {
+                    errorMessage = 'Эта ссылка уже была использована или устарела. Пожалуйста, получите новую ссылку, отправив команду /weather в Telegram боте.';
+                } else if (response.status === 401) {
+                    errorMessage = 'Не авторизован. Пожалуйста, используйте команду /weather в Telegram боте.';
+                } else {
+                    errorMessage = `Ошибка сервера (${response.status})`;
+                }
+            } catch (e) {
+                const errorText = await response.text();
+                errorMessage = `Ошибка: ${response.status} ${errorText.substring(0, 100)}`;
+            }
+            throw new Error(errorMessage);
         }
 
         const data = await response.json();

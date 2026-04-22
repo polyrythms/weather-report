@@ -1,5 +1,4 @@
 document.addEventListener('DOMContentLoaded', async () => {
-    // Инициализация Telegram WebApp
     if (window.Telegram && window.Telegram.WebApp) {
         window.Telegram.WebApp.expand();
         window.Telegram.WebApp.enableClosingConfirmation();
@@ -21,23 +20,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!token && code) {
         showLoading(true);
         try {
-            token = await Auth.exchangeCode(); // Внутри использует Auth.code
+            token = await Auth.exchangeCode();
             showLoading(false);
         } catch (error) {
             showLoading(false);
-            showAuthError(error.message);
+            // Показываем ошибку с кнопкой для получения новой ссылки
+            showExpiredCodeError(error.message);
             console.error('Exchange error:', error);
             return;
         }
     }
 
-    // Если токена всё ещё нет (и кода нет), то показываем ошибку
+    // Если токена всё ещё нет, показываем общую ошибку
     if (!token) {
         showAuthError();
         return;
     }
 
-    // Загружаем города и погоду, используя сохранённый токен
+    // Загружаем города и погоду
     showLoading(true);
     try {
         await Weather.loadCities();
@@ -71,6 +71,24 @@ function showLoading(show) {
 function showAuthError(message = 'Ошибка авторизации. Пожалуйста, используйте команду /weather в Telegram боте для доступа к прогнозу погоды.') {
     const errorDiv = document.getElementById('error');
     errorDiv.innerHTML = `<strong>❌ ${message}</strong>`;
+    errorDiv.classList.remove('hidden');
+    document.getElementById('loading').classList.add('hidden');
+}
+
+// Специальная обработка для просроченного/использованного кода
+function showExpiredCodeError(message) {
+    const errorDiv = document.getElementById('error');
+    errorDiv.innerHTML = `
+        <strong>❌ ${message}</strong><br><br>
+        <button onclick="window.location.href='https://t.me/DenisJavaStudyBOT'"
+                style="background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 8px; margin-top: 10px; cursor: pointer;">
+            📱 Открыть бота
+        </button>
+        <button onclick="navigator.clipboard.writeText('/weather')"
+                style="background: #764ba2; color: white; border: none; padding: 10px 20px; border-radius: 8px; margin-top: 10px; margin-left: 10px; cursor: pointer;">
+            📋 Скопировать команду /weather
+        </button>
+    `;
     errorDiv.classList.remove('hidden');
     document.getElementById('loading').classList.add('hidden');
 }
