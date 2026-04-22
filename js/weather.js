@@ -7,7 +7,7 @@ const Weather = {
 
     async loadCities() {
         try {
-            const response = await fetch(`${CONFIG.API_BASE_URL}/api/weather/cities`, {
+            const response = await fetch(`${CONFIG.API_BASE_URL}/weather/cities`, {
                 headers: Auth.getHeaders(),
                 signal: AbortSignal.timeout(CONFIG.TIMEOUT)
             });
@@ -49,28 +49,15 @@ const Weather = {
         this.currentCity = city;
         document.getElementById('current-weather').classList.add('hidden');
         document.getElementById('forecast').classList.add('hidden');
-
         try {
-            // Загружаем текущую погоду
-            const weatherResponse = await fetch(
-                `${CONFIG.API_BASE_URL}/api/weather/current?city=${city.id}`,
+            const response = await fetch(
+                `${CONFIG.API_BASE_URL}/weather/forecast?city=${encodeURIComponent(city.name)}`,
                 { headers: Auth.getHeaders() }
             );
-
-            if (!weatherResponse.ok) throw new Error('Failed to load weather');
-            this.currentWeather = await weatherResponse.json();
-
-            // Загружаем прогноз
-            const forecastResponse = await fetch(
-                `${CONFIG.API_BASE_URL}/api/weather/forecast?city=${city.id}`,
-                { headers: Auth.getHeaders() }
-            );
-
-            if (!forecastResponse.ok) throw new Error('Failed to load forecast');
-            this.forecast = await forecastResponse.json();
-
+            if (!response.ok) throw new Error('Failed to load weather');
+            const data = await response.json();
+            this.currentWeather = data;  // предполагаем, что ответ ForecastResponse
             this.displayWeather();
-
         } catch (error) {
             console.error('Error loading weather:', error);
             this.showError('Не удалось загрузить прогноз погоды');

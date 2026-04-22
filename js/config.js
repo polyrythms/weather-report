@@ -1,11 +1,6 @@
 const CONFIG = {
-    // API URL вашего VPS сервера
-    API_BASE_URL: 'https://2.27.20.149',
-
-    // Версия API
+    API_BASE_URL: 'https://polyrythms.duckdns.org',  // ← замените IP на домен
     API_VERSION: 'v1',
-
-    // Таймаут запросов (мс)
     TIMEOUT: 30000
 };
 
