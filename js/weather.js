@@ -34,7 +34,7 @@ const Weather = {
         });
         select.addEventListener('change', (e) => {
             if (e.target.value) {
-                const city = this.cities.find(c => c.id === e.target.value);
+                const city = this.cities.find(c => c.id == e.target.value);
                 this.loadWeatherForCity(city);
             }
         });
@@ -49,15 +49,15 @@ const Weather = {
                 `${CONFIG.API_BASE_URL}/weather/forecast?city=${encodeURIComponent(city.name)}`,
                 { headers: Auth.getHeaders() }
             );
-            if (!response.ok) throw new Error('Failed to load weather');
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
             const data = await response.json();
             // data = { city: "Москва", forecasts: [ { date, tempMax, tempMin, windSpeedMax, windGustMax, windDirection, cloudiness, rainMm, snowCm } ] }
-            this.forecast = data.forecasts;
-            if (this.forecast && this.forecast.length > 0) {
-                this.currentWeather = this.forecast[0];   // первый день – сегодня/завтра
-            } else {
-                this.currentWeather = null;
-            }
+            this.forecast = data.forecasts || [];
+            this.currentWeather = this.forecast[0] || null;
             this.displayWeather();
         } catch (error) {
             console.error('Error loading weather:', error);
@@ -67,17 +67,24 @@ const Weather = {
 
     displayWeather() {
         const currentDiv = document.getElementById('current-weather');
+        const forecastList = document.getElementById('forecast-list');
+
         if (this.currentWeather) {
-            // Вычисляем среднюю температуру за день
             const avgTemp = Math.round((this.currentWeather.tempMax + this.currentWeather.tempMin) / 2);
-            const windSpeed = this.currentWeather.windSpeedMax;
-            const description = `Облачность: ${this.currentWeather.cloudiness}%, ветер ${this.currentWeather.windDirection}`;
+            const windSpeed = this.currentWeather.windSpeedMax || 0;
+            const description = `Облачность: ${this.currentWeather.cloudiness}%, ветер ${this.currentWeather.windDirection || '?'}`;
+            const rainText = this.currentWeather.rainMm ? `${this.currentWeather.rainMm} мм` : '—';
+            const snowText = this.currentWeather.snowCm ? `${this.currentWeather.snowCm} см` : '—';
+            const precipText = (this.currentWeather.rainMm || this.currentWeather.snowCm)
+                ? `💧 Осадки: ${rainText}${this.currentWeather.snowCm ? ` / ${snowText}` : ''}`
+                : '💧 Осадки: —';
+
             currentDiv.innerHTML = `
-                <div class="weather-icon">${this.getWeatherIconByClouds(this.currentWeather.cloudiness)}</div>
+                <div class="weather-icon">${this.getWeatherIconByConditions(this.currentWeather.cloudiness, this.currentWeather.rainMm, this.currentWeather.snowCm)}</div>
                 <div class="temperature">${avgTemp}°C</div>
                 <div class="description">${description}</div>
                 <div class="details">
-                    💧 Осадки: ${this.currentWeather.rainMm ? this.currentWeather.rainMm + ' мм' : '—'} | 
+                    ${precipText} | 
                     🌬 Ветер: ${windSpeed} м/с
                 </div>
             `;
@@ -86,13 +93,11 @@ const Weather = {
         }
         currentDiv.classList.remove('hidden');
 
-        // Отображаем прогноз на 3-5 дней
-        const forecastList = document.getElementById('forecast-list');
         if (this.forecast && this.forecast.length > 0) {
             forecastList.innerHTML = this.forecast.map(day => `
                 <div class="forecast-item">
                     <div class="forecast-date">${new Date(day.date).toLocaleDateString('ru-RU', {weekday: 'short', day: 'numeric'})}</div>
-                    <div class="forecast-icon">${this.getWeatherIconByClouds(day.cloudiness)}</div>
+                    <div class="forecast-icon">${this.getWeatherIconByConditions(day.cloudiness, day.rainMm, day.snowCm)}</div>
                     <div class="forecast-temp">${Math.round(day.tempMax)}° / ${Math.round(day.tempMin)}°</div>
                     <div class="forecast-detail">💨 ${day.windSpeedMax} м/с</div>
                 </div>
@@ -103,10 +108,9 @@ const Weather = {
         document.getElementById('forecast').classList.remove('hidden');
     },
 
-    // Простая иконка по облачности (можно улучшить)
-    getWeatherIconByClouds(cloudiness, rainMm, snowCm) {
-        if (snowCm > 0) return '❄️';
-        if (rainMm > 0) return '🌧';
+    getWeatherIconByConditions(cloudiness, rainMm, snowCm) {
+        if (snowCm && snowCm > 0) return '❄️';
+        if (rainMm && rainMm > 0) return '🌧';
         if (cloudiness >= 80) return '☁️';
         if (cloudiness >= 30) return '⛅';
         return '☀️';
