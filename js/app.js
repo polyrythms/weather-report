@@ -1,28 +1,48 @@
 document.addEventListener('DOMContentLoaded', async () => {
+    // Инициализация Telegram WebApp
     if (window.Telegram && window.Telegram.WebApp) {
         window.Telegram.WebApp.expand();
         window.Telegram.WebApp.enableClosingConfirmation();
     }
 
-    if (!Auth.init()) {
+    // Получаем код из URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('startapp');
+
+    // Пытаемся загрузить токен из localStorage
+    let token = Auth.getToken();
+
+    // Если токена нет, но есть код, то обмениваем код на токен
+    if (!token && code) {
+        showLoading(true);
+        try {
+            token = await Auth.exchangeCode(); // Внутри сохранит токен в localStorage
+            showLoading(false);
+        } catch (error) {
+            showLoading(false);
+            showAuthError(error.message);
+            console.error('Exchange error:', error);
+            return;
+        }
+    }
+
+    // Если токена всё ещё нет (и кода нет), то показываем ошибку
+    if (!token) {
         showAuthError();
         return;
     }
 
+    // Загружаем города и погоду, используя сохранённый токен
     showLoading(true);
     try {
-        // Обмениваем код на токен
-        await Auth.exchangeCode();
-
-        // Загружаем города и погоду
         await Weather.loadCities();
         showLoading(false);
         document.getElementById('weather-container').classList.remove('hidden');
 
-        const lastCity = localStorage.getItem('last_city');
-        if (lastCity && Weather.cities.find(c => c.id == lastCity)) {
-            const city = Weather.cities.find(c => c.id == lastCity);
-            document.getElementById('city-select').value = lastCity;
+        const lastCityId = localStorage.getItem('last_city');
+        if (lastCityId && Weather.cities.find(c => c.id == lastCityId)) {
+            const city = Weather.cities.find(c => c.id == lastCityId);
+            document.getElementById('city-select').value = lastCityId;
             await Weather.loadWeatherForCity(city);
         }
     } catch (error) {
