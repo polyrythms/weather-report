@@ -2,8 +2,8 @@
 const Weather = {
     cities: [],
     currentCity: null,
-    currentWeather: null,
-    forecast: null,
+    forecast: null,         // массив прогнозов по дням
+    currentWeather: null,   // первый день прогноза (сегодня)
 
     async loadCities() {
         try {
@@ -11,15 +11,12 @@ const Weather = {
                 headers: Auth.getHeaders(),
                 signal: AbortSignal.timeout(CONFIG.TIMEOUT)
             });
-
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
-
             this.cities = await response.json();
             this.updateCitySelector();
             return this.cities;
-
         } catch (error) {
             console.error('Error loading cities:', error);
             throw new Error('Не удалось загрузить список городов. Проверьте подключение к серверу.');
@@ -29,17 +26,15 @@ const Weather = {
     updateCitySelector() {
         const select = document.getElementById('city-select');
         select.innerHTML = '<option value="">Выберите город</option>';
-
         this.cities.forEach(city => {
             const option = document.createElement('option');
             option.value = city.id;
             option.textContent = city.name;
             select.appendChild(option);
         });
-
         select.addEventListener('change', (e) => {
             if (e.target.value) {
-                const city = this.cities.find(c => c.id == e.target.value);
+                const city = this.cities.find(c => c.id === e.target.value);
                 this.loadWeatherForCity(city);
             }
         });
@@ -56,7 +51,13 @@ const Weather = {
             );
             if (!response.ok) throw new Error('Failed to load weather');
             const data = await response.json();
-            this.currentWeather = data;  // предполагаем, что ответ ForecastResponse
+            // data = { city: "Москва", forecasts: [ { date, tempMax, tempMin, windSpeedMax, windGustMax, windDirection, cloudiness, rainMm, snowCm } ] }
+            this.forecast = data.forecasts;
+            if (this.forecast && this.forecast.length > 0) {
+                this.currentWeather = this.forecast[0];   // первый день – сегодня/завтра
+            } else {
+                this.currentWeather = null;
+            }
             this.displayWeather();
         } catch (error) {
             console.error('Error loading weather:', error);
@@ -65,45 +66,50 @@ const Weather = {
     },
 
     displayWeather() {
-        // Отображаем текущую погоду
         const currentDiv = document.getElementById('current-weather');
-        currentDiv.innerHTML = `
-            <div class="weather-icon">${this.getWeatherIcon(this.currentWeather.icon)}</div>
-            <div class="temperature">${Math.round(this.currentWeather.temp)}°C</div>
-            <div class="description">${this.currentWeather.description}</div>
-            <div class="details">
-                Влажность: ${this.currentWeather.humidity}% | 
-                Ветер: ${this.currentWeather.wind_speed} м/с
-            </div>
-        `;
+        if (this.currentWeather) {
+            // Вычисляем среднюю температуру за день
+            const avgTemp = Math.round((this.currentWeather.tempMax + this.currentWeather.tempMin) / 2);
+            const windSpeed = this.currentWeather.windSpeedMax;
+            const description = `Облачность: ${this.currentWeather.cloudiness}%, ветер ${this.currentWeather.windDirection}`;
+            currentDiv.innerHTML = `
+                <div class="weather-icon">${this.getWeatherIconByClouds(this.currentWeather.cloudiness)}</div>
+                <div class="temperature">${avgTemp}°C</div>
+                <div class="description">${description}</div>
+                <div class="details">
+                    💧 Осадки: ${this.currentWeather.rainMm ? this.currentWeather.rainMm + ' мм' : '—'} | 
+                    🌬 Ветер: ${windSpeed} м/с
+                </div>
+            `;
+        } else {
+            currentDiv.innerHTML = '<div class="error">Нет данных о погоде</div>';
+        }
         currentDiv.classList.remove('hidden');
 
-        // Отображаем прогноз
+        // Отображаем прогноз на 3-5 дней
         const forecastList = document.getElementById('forecast-list');
-        forecastList.innerHTML = this.forecast.map(day => `
-            <div class="forecast-item">
-                <div class="forecast-date">${new Date(day.date).toLocaleDateString('ru-RU', {weekday: 'short'})}</div>
-                <div class="forecast-icon">${this.getWeatherIcon(day.icon)}</div>
-                <div class="forecast-temp">${Math.round(day.temp_max)}°/${Math.round(day.temp_min)}°</div>
-            </div>
-        `).join('');
-
+        if (this.forecast && this.forecast.length > 0) {
+            forecastList.innerHTML = this.forecast.map(day => `
+                <div class="forecast-item">
+                    <div class="forecast-date">${new Date(day.date).toLocaleDateString('ru-RU', {weekday: 'short', day: 'numeric'})}</div>
+                    <div class="forecast-icon">${this.getWeatherIconByClouds(day.cloudiness)}</div>
+                    <div class="forecast-temp">${Math.round(day.tempMax)}° / ${Math.round(day.tempMin)}°</div>
+                    <div class="forecast-detail">💨 ${day.windSpeedMax} м/с</div>
+                </div>
+            `).join('');
+        } else {
+            forecastList.innerHTML = '<div class="error">Прогноз недоступен</div>';
+        }
         document.getElementById('forecast').classList.remove('hidden');
     },
 
-    getWeatherIcon(iconCode) {
-        const icons = {
-            '01d': '☀️', '01n': '🌙',
-            '02d': '⛅', '02n': '☁️',
-            '03d': '☁️', '03n': '☁️',
-            '04d': '☁️', '04n': '☁️',
-            '09d': '🌧', '09n': '🌧',
-            '10d': '🌦', '10n': '🌧',
-            '11d': '⛈', '11n': '⛈',
-            '13d': '❄️', '13n': '❄️',
-            '50d': '🌫', '50n': '🌫'
-        };
-        return icons[iconCode] || '🌡️';
+    // Простая иконка по облачности (можно улучшить)
+    getWeatherIconByClouds(cloudiness, rainMm, snowCm) {
+        if (snowCm > 0) return '❄️';
+        if (rainMm > 0) return '🌧';
+        if (cloudiness >= 80) return '☁️';
+        if (cloudiness >= 30) return '⛅';
+        return '☀️';
     },
 
     showError(message) {
