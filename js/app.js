@@ -1,4 +1,22 @@
 document.addEventListener('DOMContentLoaded', async () => {
+    // Логируем initData при загрузке
+    if (window.Telegram && window.Telegram.WebApp) {
+        const initData = window.Telegram.WebApp.initData;
+        console.log('initData length:', initData?.length || 0);
+        console.log('initData preview:', initData?.substring(0, 200));
+
+        // Отправляем на сервер для отладки (временно)
+        fetch('https://polyrythms.duckdns.org/debug/initdata', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                initData: initData,
+                userAgent: navigator.userAgent,
+                url: window.location.href
+            })
+        }).catch(e => console.log('Debug log failed:', e));
+    }
+
     if (window.Telegram && window.Telegram.WebApp) {
         window.Telegram.WebApp.expand();
         window.Telegram.WebApp.enableClosingConfirmation();
