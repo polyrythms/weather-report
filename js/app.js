@@ -1,20 +1,56 @@
 document.addEventListener('DOMContentLoaded', async () => {
-    // Логируем initData при загрузке
+// Логируем initData при загрузке (только в консоль браузера)
     if (window.Telegram && window.Telegram.WebApp) {
         const initData = window.Telegram.WebApp.initData;
-        console.log('initData length:', initData?.length || 0);
-        console.log('initData preview:', initData?.substring(0, 200));
+        const webApp = window.Telegram.WebApp;
 
-        // Отправляем на сервер для отладки (временно)
-        fetch('https://polyrythms.duckdns.org/debug/initdata', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                initData: initData,
-                userAgent: navigator.userAgent,
-                url: window.location.href
-            })
-        }).catch(e => console.log('Debug log failed:', e));
+        console.group('🔍 Telegram WebApp Debug Info');
+        console.log('✓ WebApp object exists:', !!webApp);
+        console.log('✓ initData length:', initData?.length || 0);
+        console.log('✓ initData present:', !!initData);
+
+        if (initData && initData.length > 0) {
+            // Разбираем initData на параметры для анализа
+            const params = {};
+            initData.split('&').forEach(pair => {
+                const [key, value] = pair.split('=');
+                if (key && value) {
+                    params[key] = decodeURIComponent(value);
+                }
+            });
+
+            console.log('📋 Parsed parameters:', Object.keys(params));
+            console.log('✓ hash present:', !!params.hash);
+            console.log('✓ auth_date present:', !!params.auth_date);
+            console.log('✓ user present:', !!params.user);
+            console.log('✓ signature present:', !!params.signature);
+
+            if (params.user) {
+                try {
+                    const user = JSON.parse(params.user);
+                    console.log('👤 User info:', {
+                        id: user.id,
+                        username: user.username,
+                        first_name: user.first_name,
+                        language_code: user.language_code
+                    });
+                } catch (e) {
+                    console.warn('Failed to parse user JSON');
+                }
+            }
+
+            console.log('📝 Full initData (first 300 chars):', initData.substring(0, 300) + '...');
+            console.log('🔑 Hash value:', params.hash);
+            console.log('⏰ Auth date:', params.auth_date ? new Date(parseInt(params.auth_date) * 1000).toLocaleString() : 'missing');
+        } else {
+            console.warn('⚠️ initData is empty or missing!');
+            console.log('Possible reasons:');
+            console.log('  - Not opened from Telegram WebView');
+            console.log('  - Telegram WebApp script not loaded properly');
+            console.log('  - Mini App URL not configured correctly in BotFather');
+        }
+
+        console.groupEnd();
     }
 
     if (window.Telegram && window.Telegram.WebApp) {
