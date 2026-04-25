@@ -45,5 +45,58 @@
 <script src="js/auth.js"></script>
 <script src="js/weather.js"></script>
 <script src="js/app.js"></script>
+
+<!-- Отладочная панель для копирования initData -->
+<div id="debug-panel" style="position: fixed; bottom: 10px; right: 10px; z-index: 9999; display: flex; gap: 10px;">
+    <button id="copy-initdata-btn" style="background: #667eea; color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 12px;">
+        📋 Copy InitData
+    </button>
+    <button id="log-initdata-btn" style="background: #764ba2; color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 12px;">
+        🔍 Log InitData
+    </button>
+</div>
+
+<script>
+    (function() {
+        // Ждём загрузки Telegram WebApp
+        const initBtn = document.getElementById('copy-initdata-btn');
+        const logBtn = document.getElementById('log-initdata-btn');
+
+        if (!initBtn || !logBtn) return;
+
+        const getInitData = () => window.Telegram?.WebApp?.initData || null;
+
+        initBtn.addEventListener('click', () => {
+            const initData = getInitData();
+            if (initData) {
+                navigator.clipboard.writeText(initData);
+                initBtn.textContent = '✅ Copied!';
+                setTimeout(() => initBtn.textContent = '📋 Copy InitData', 2000);
+            } else {
+                initBtn.textContent = '❌ No initData';
+                setTimeout(() => initBtn.textContent = '📋 Copy InitData', 2000);
+            }
+        });
+
+        logBtn.addEventListener('click', () => {
+            const initData = getInitData();
+            if (initData) {
+                console.log('=== TELEGRAM INIT DATA ===');
+                console.log(initData);
+                console.log('==========================');
+
+                // Разбираем для удобства
+                const params = {};
+                initData.split('&').forEach(pair => {
+                    const [key, value] = pair.split('=');
+                    if (key && value) params[key] = decodeURIComponent(value);
+                });
+                console.log('Parsed:', params);
+            } else {
+                console.log('No initData available');
+            }
+        });
+    })();
+</script>
 </body>
 </html>
